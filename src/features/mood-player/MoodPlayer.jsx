@@ -2,22 +2,25 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, Volume2, VolumeX } from 'lucide-react';
 
-export const MoodPlayer = ({ mood,duration, onBack }) => {
+export const MoodPlayer = ({ mood, duration, onBack }) => {
   const [index, setIndex] = useState(0);
   const [images, setImages] = useState([]);
   const [isReady, setIsReady] = useState(false);
   const [phase, setPhase] = useState("Вдих");
   const [isMuted, setIsMuted] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(duration || 300); // 5 хвилин
+  const [timeLeft, setTimeLeft] = useState(duration || 300);
 
   const phaseDuration = 4;
   const tg = window.Telegram?.WebApp;
 
-  // Реф для звуку гонгу
   const gongRef = useRef(new Audio("https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3"));
 
-  // 1. Ініціалізація звуку та зображень
+  // 1. Ініціалізація Telegram, звуку та зображень
   useEffect(() => {
+    // Повідомляємо Telegram, що ми готові
+    tg?.ready();
+    tg?.expand();
+
     const gong = gongRef.current;
     gong.volume = 0.2;
     gong.preload = "auto";
@@ -54,7 +57,7 @@ export const MoodPlayer = ({ mood,duration, onBack }) => {
       gong.pause();
       gong.currentTime = 0;
     };
-  }, [mood]);
+  }, [mood, tg]);
 
   // 2. Єдиний цикл для таймера, фаз дихання та звуку
   useEffect(() => {
@@ -65,10 +68,8 @@ export const MoodPlayer = ({ mood,duration, onBack }) => {
     let secondsInPhase = 0;
 
     const mainTimer = setInterval(() => {
-      // Керування загальним часом сесії
-      setTimeLeft(prev => prev - 1);
+      setTimeLeft(prev => (prev > 0 ? prev - 1 : 0));
 
-      // Керування фазами дихання (кожні 4 секунди)
       secondsInPhase++;
       if (secondsInPhase >= phaseDuration) {
         secondsInPhase = 0;
@@ -77,18 +78,18 @@ export const MoodPlayer = ({ mood,duration, onBack }) => {
         const currentPhaseName = phases[currentPhaseIdx];
         setPhase(currentPhaseName);
 
-        // Вібрація Telegram
+        // Вібрація (об'єднана перевірка)
         if (tg?.HapticFeedback) {
           tg.HapticFeedback.impactOccurred('light');
         }
 
-        // Відтворення звуку гонгу
+        // Відтворення звуку гонгу (виправлено)
         if (!isMuted) {
           gongRef.current.currentTime = 0;
-          gongRef.current.play().catch(e => console.log("Audio blocked"));
+          gongRef.current.play().catch(e => console.log("Audio play blocked"));
         }
 
-        // Зміна фону на початку кожного повного циклу (Вдих)
+        // Зміна фону
         if (currentPhaseIdx === 0) {
           setIndex(prev => (prev + 1) % (images.length || 1));
         }
@@ -96,13 +97,46 @@ export const MoodPlayer = ({ mood,duration, onBack }) => {
     }, 1000);
 
     return () => clearInterval(mainTimer);
-  }, [isReady, isMuted, images.length, tg]);
+  }, [isReady, isMuted, images.length, tg, timeLeft]); // Додано timeLeft в залежності
+
+  // 3. Заборона сну екрану (Wake Lock)
+  useEffect(() => {
+    let wakeLock = null;
+
+    const requestWakeLock = async () => {
+      try {
+        if ('wakeLock' in navigator) {
+          wakeLock = await navigator.wakeLock.request('screen');
+        }
+      } catch (err) {
+        console.error(`${err.name}, ${err.message}`);
+      }
+    };
+
+    if (isReady) {
+      requestWakeLock();
+    }
+
+    const handleVisibilityChange = () => {
+      if (wakeLock !== null && document.visibilityState === 'visible') {
+        requestWakeLock();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      wakeLock?.release().then(() => {
+        wakeLock = null;
+      });
+    };
+  }, [isReady]);
 
   const isExpanded = phase === "Вдих" || phase === "Затримка";
 
-  // Loader
   if (!isReady) return (
-    <div className="h-screen w-full bg-[#050505] flex flex-col items-center justify-center text-white p-10">
+    <div className="h-screen w-full bg-[#050505] flex flex-col items-center justify-center text-white p-10 text-center">
       <div className="relative flex items-center justify-center mb-10">
         <motion.div 
           animate={{ scale: [1, 1.4, 1], opacity: [0.1, 0.3, 0.1] }}
@@ -112,14 +146,14 @@ export const MoodPlayer = ({ mood,duration, onBack }) => {
         <motion.div 
           animate={{ borderColor: ["rgba(255,255,255,0.1)", "rgba(255,255,255,0.6)", "rgba(255,255,255,0.1)"] }}
           transition={{ duration: 2, repeat: Infinity }}
-          className="w-20 h-20 border-2 rounded-full flex items-center justify-center relative shadow-[0_0_20px_rgba(255,255,255,0.05)]"
+          className="w-20 h-20 border-2 rounded-full flex items-center justify-center relative"
         >
           <div className="w-2 h-2 bg-white rounded-full shadow-[0_0_10px_white]" />
         </motion.div>
       </div>
-      <h2 className="text-white text-xl font-light tracking-[0.4em] uppercase">Приготуйся</h2>
-      <p className="mt-4 text-white/30 text-[10px] uppercase tracking-[0.2em] italic text-center">
-        Налаштування потоку: {mood?.label}
+      <h2 className="text-xl font-light tracking-[0.4em] uppercase">Приготуйся</h2>
+      <p className="mt-4 text-white/30 text-[10px] uppercase tracking-[0.2em] italic">
+        Налаштування: {mood?.label}
       </p>
     </div>
   );
@@ -129,17 +163,12 @@ export const MoodPlayer = ({ mood,duration, onBack }) => {
       
       {/* ПАНЕЛЬ КЕРУВАННЯ */}
       <div className="absolute top-12 w-full px-10 z-50 flex justify-between items-center">
-        <button 
-          onClick={() => setIsMuted(!isMuted)} 
-          className="p-2 text-white/20 hover:text-white/60 transition-colors"
-        >
+        <button onClick={() => setIsMuted(!isMuted)} className="p-2 text-white/20">
           {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
         </button>
-
         <span className="text-white/20 text-[10px] font-mono tracking-[0.5em] italic">
           {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
         </span>
-
         <button onClick={onBack} className="p-2 text-white/30 hover:text-white transition-colors">
           <Menu size={24} />
         </button>
@@ -158,7 +187,6 @@ export const MoodPlayer = ({ mood,duration, onBack }) => {
             className="w-full h-full object-cover brightness-[0.45]"
           />
         </AnimatePresence>
-        
         <motion.div 
           animate={{ opacity: isExpanded ? 0 : 0.35 }}
           transition={{ duration: phaseDuration, ease: "easeInOut" }}
@@ -171,7 +199,7 @@ export const MoodPlayer = ({ mood,duration, onBack }) => {
         <motion.div 
           animate={{ scale: isExpanded ? 1.4 : 1 }}
           transition={{ duration: phaseDuration, ease: "easeInOut" }}
-          className="w-44 h-44 border border-white/30 rounded-full flex items-center justify-center bg-white/5 backdrop-blur-[1.5px] shadow-[0_0_40px_rgba(255,255,255,0.02)]"
+          className="w-44 h-44 border border-white/30 rounded-full flex items-center justify-center bg-white/5 backdrop-blur-[1.5px]"
         >
           <AnimatePresence mode="wait">
             <motion.span
