@@ -3,7 +3,11 @@ import { Telegraf, Markup } from 'telegraf';
 const token = process.env.BOT_TOKEN;
 const bot = new Telegraf(token);
 
+// Твоє посилання на Web App
 const webAppLink = "https://breath-flow-app.vercel.app";
+
+// --- ТЕКСТИ ---
+const mainMenuText = "<b>Вітаю у Breath Flow!</b> 👋\n\nОбери дію, щоб почати практику:";
 
 // --- РОЗГОРНУТИЙ ТЕКСТ HELP ---
 const helpMessage = `
@@ -26,24 +30,46 @@ const helpMessage = `
 Просто натисніть <b>«Почати дихати»</b>, оберіть час сесії та потік, який відповідає вашому запиту (Любов, Гроші, Енергія чи Спокій).
 `;
 
-// --- ГОЛОВНЕ МЕНЮ (/start) ---
+// --- КЛАВІАТУРИ ---
+
+// Головне меню (кнопки над клавіатурою)
+const mainKeyboard = Markup.keyboard([
+  [Markup.button.webApp('🚀 Почати дихати', webAppLink)],
+  ['📖 Як це працює?', '💬 Автор']
+]).resize();
+
+// Кнопка повернення до головного меню
+const backKeyboard = Markup.keyboard([
+  ['🔙 Назад в меню']
+]).resize();
+
+// --- ЛОГІКА БОТА ---
+
+// Привітання та головне меню
 bot.start((ctx) => {
-  const name = ctx.from.first_name || 'Друже';
-  
+  return ctx.replyWithHTML(mainMenuText, mainKeyboard);
+});
+
+// Розгорнута допомога з кнопкою "Назад"
+bot.hears('📖 Як це працює?', (ctx) => {
+  return ctx.replyWithHTML(helpText, backKeyboard);
+});
+
+// Зв'язок з автором з кнопкою "Назад"
+bot.hears('💬 Автор', (ctx) => {
   return ctx.replyWithHTML(
-    `Вітаю, ${name}! 👋\n\nЦе твій персональний простір для <b>Breath Flow</b>. Тут ти можеш за лічені хвилини синхронізувати своє дихання та змінити внутрішній стан.\n\nОбери дію нижче:`,
-    Markup.keyboard([
-      [Markup.button.webApp('🧘 Почати дихати', webAppLink)],
-      ['📖 Як це працює?', '💬 Зв’язок з автором']
-    ]).resize() // resize робить кнопки акуратними за розміром
+    "З усіх питань та пропозицій пишіть: @erick_demche", 
+    backKeyboard
   );
 });
 
-// Обробка тексту з кнопок клавіатури
-bot.hears('📖 Як це працює?', (ctx) => ctx.replyWithHTML(helpMessage));
-bot.hears('💬 Зв’язок з автором', (ctx) => ctx.reply('З усіх питань: @oleksii_demchenko'));
+// Повернення в головне меню
+bot.hears('🔙 Назад в меню', (ctx) => {
+  return ctx.replyWithHTML(mainMenuText, mainKeyboard);
+});
 
-bot.help((ctx) => ctx.replyWithHTML(helpMessage));
+// Стандартна команда /help
+bot.help((ctx) => ctx.replyWithHTML(helpText, backKeyboard));
 
 export default async function handler(req, res) {
   try {
@@ -51,7 +77,7 @@ export default async function handler(req, res) {
       await bot.handleUpdate(req.body);
       return res.status(200).json({ status: 'ok' });
     }
-    return res.status(200).send('Бекенд з Головним Меню активний!');
+    return res.status(200).send('Бот Breath Flow працює!');
   } catch (err) {
     console.error('Помилка:', err);
     return res.status(200).json({ error: err.message });
