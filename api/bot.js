@@ -1,30 +1,40 @@
-const { Telegraf } = require('telegraf');
+import { Telegraf } from 'telegraf';
 
-// Перевірка наявності токена перед ініціалізацією
 const token = process.env.BOT_TOKEN;
+
 if (!token) {
-  console.error('ПОМИЛКА: BOT_TOKEN не знайдено в Environment Variables!');
+  console.error('ПОМИЛКА: BOT_TOKEN не знайдено!');
 }
 
 const bot = new Telegraf(token);
 
-bot.start((ctx) => ctx.reply('Вітаю! Я працюю на Vercel!'));
-bot.help((ctx) => ctx.reply('Це довідка Breath Flow. Натисніть "Дихати" у меню.'));
+// Текст для команди /help
+const helpMessage = `
+<b>🧘 Що таке Метод Квадратного дихання?</b>
 
-module.exports = async (req, res) => {
+Це техніка 4-4-4-4, де кожна фаза триває 4 секунди.
+1. <b>Вдих</b> — наповнення.
+2. <b>Затримка</b> — засвоєння.
+3. <b>Видих</b> — розслаблення.
+4. <b>Затримка</b> — точка спокою.
+
+<b>🚀 Як користуватися?</b>
+Натисніть кнопку меню, оберіть час та потік.
+`;
+
+bot.start((ctx) => ctx.reply('Вітаю у Breath Flow!'));
+bot.help((ctx) => ctx.replyWithHTML(helpMessage));
+
+// В ES Modules використовуємо export default замість module.exports
+export default async function handler(req, res) {
   try {
-    // Додаємо логування вхідного запиту для діагностики
-    console.log('Вхідний запит:', req.body);
-
     if (req.method === 'POST') {
       await bot.handleUpdate(req.body);
       return res.status(200).json({ status: 'ok' });
     }
-    
-    return res.status(200).send('Бекенд бота активний. Чекаю на POST від Telegram.');
+    return res.status(200).send('Бекенд активний (ES Modules).');
   } catch (err) {
-    console.error('Критична помилка виконання:', err);
-    // Повертаємо 200 навіть при помилці, щоб Telegram не "закидав" нас повторними запитами
+    console.error('Помилка бота:', err);
     return res.status(200).json({ error: err.message });
   }
-};
+}
