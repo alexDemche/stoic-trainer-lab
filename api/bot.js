@@ -3,13 +3,11 @@ import { Telegraf, Markup } from 'telegraf';
 const token = process.env.BOT_TOKEN;
 const bot = new Telegraf(token);
 
-// Твоє посилання на Web App
 const webAppLink = "https://breath-flow-app.vercel.app";
 
 // --- ТЕКСТИ ---
 const mainMenuText = "<b>Вітаю у Breath Flow!</b> 👋\n\nОбери дію, щоб почати практику:";
 
-// --- РОЗГОРНУТИЙ ТЕКСТ HELP ---
 const helpText = `
 <b>🧘 Про метод Квадратного дихання (Box Breathing)</b>
 
@@ -30,46 +28,56 @@ const helpText = `
 Просто натисніть <b>«Почати дихати»</b>, оберіть час сесії та потік, який відповідає вашому запиту (Любов, Гроші, Енергія чи Спокій).
 `;
 
-// --- КЛАВІАТУРИ ---
+// --- КЛАВІАТУРИ (Inline) ---
 
-// Головне меню (кнопки над клавіатурою)
-const mainKeyboard = Markup.keyboard([
-  [Markup.button.webApp('🧘 Почати дихати', webAppLink)], // Головна кнопка
-  ['📖 Як це працює?', '💬 Автор']
-]).resize().persistent(); // persistent() тримає меню відкритим завжди
+// Головне меню
+const getMainMenu = () => Markup.inlineKeyboard([
+  [Markup.button.webApp('🧘 Почати дихати', webAppLink)], 
+  [Markup.button.callback('📖 Як це працює?', 'help_action')] // Тільки одна кнопка знизу
+]);
 
-// Кнопка повернення до головного меню
-const backKeyboard = Markup.keyboard([
-  ['🔙 Назад в меню']
-]).resize().persistent();
+// Кнопка "Назад"
+const getBackMenu = () => Markup.inlineKeyboard([
+  [Markup.button.callback('🔙 Назад в меню', 'back_to_menu')]
+]);
 
 // --- ЛОГІКА БОТА ---
 
-// Привітання та головне меню
 bot.start((ctx) => {
-  return ctx.replyWithHTML(mainMenuText, mainKeyboard);
+  return ctx.replyWithHTML(mainMenuText, getMainMenu());
 });
 
-// Розгорнута допомога з кнопкою "Назад"
-bot.hears('📖 Як це працює?', (ctx) => {
-  return ctx.replyWithHTML(helpText, backKeyboard);
+bot.help((ctx) => {
+  return ctx.replyWithHTML(helpText, getMainMenu());
 });
 
-// Зв'язок з автором з кнопкою "Назад"
-bot.hears('💬 Автор', (ctx) => {
-  return ctx.replyWithHTML(
-    "З усіх питань та пропозицій пишіть: @erick_demche", 
-    backKeyboard
-  );
+// --- ACTIONS ---
+
+// Натиснули "Як це працює?"
+bot.action('help_action', async (ctx) => {
+  try {
+    await ctx.editMessageText(helpText, {
+      parse_mode: 'HTML',
+      ...getBackMenu()
+    });
+    await ctx.answerCbQuery();
+  } catch (e) {
+    console.error(e);
+  }
 });
 
-// Повернення в головне меню
-bot.hears('🔙 Назад в меню', (ctx) => {
-  return ctx.replyWithHTML(mainMenuText, mainKeyboard);
+// Натиснули "Назад"
+bot.action('back_to_menu', async (ctx) => {
+  try {
+    await ctx.editMessageText(mainMenuText, {
+      parse_mode: 'HTML',
+      ...getMainMenu()
+    });
+    await ctx.answerCbQuery();
+  } catch (e) {
+    console.error(e);
+  }
 });
-
-// Стандартна команда /help
-bot.help((ctx) => ctx.replyWithHTML(helpText, backKeyboard));
 
 export default async function handler(req, res) {
   try {
@@ -77,7 +85,7 @@ export default async function handler(req, res) {
       await bot.handleUpdate(req.body);
       return res.status(200).json({ status: 'ok' });
     }
-    return res.status(200).send('Бот Breath Flow працює!');
+    return res.status(200).send('Breath Flow Bot Active');
   } catch (err) {
     console.error('Помилка:', err);
     return res.status(200).json({ error: err.message });
