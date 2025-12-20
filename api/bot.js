@@ -1,38 +1,49 @@
-import { Telegraf } from 'telegraf';
+import { Telegraf, Markup } from 'telegraf';
 
 const token = process.env.BOT_TOKEN;
-
-if (!token) {
-  console.error('ПОМИЛКА: BOT_TOKEN не знайдено!');
-}
-
 const bot = new Telegraf(token);
 
-// Текст для команди /help
+// Твоє посилання на Vercel (Web App)
+const webAppLink = "https://breath-flow-app.vercel.app";
+
 const helpMessage = `
-<b>🧘 Що таке Метод Квадратного дихання?</b>
+<b>🧘 Як користуватися Breath Flow?</b>
 
-Це техніка 4-4-4-4, де кожна фаза триває 4 секунди.
-1. <b>Вдих</b> — наповнення.
-2. <b>Затримка</b> — засвоєння.
-3. <b>Видих</b> — розслаблення.
-4. <b>Затримка</b> — точка спокою.
+1. Натисніть кнопку <b>«Запустити потік»</b>.
+2. Оберіть настрій та час сесії.
+3. Слідуйте за колом та дихайте синхронно.
 
-<b>🚀 Як користуватися?</b>
-Натисніть кнопку меню, оберіть час та потік.
+<i>Квадратне дихання — це твій ключ до спокою за 5 хвилин.</i>
 `;
 
-bot.start((ctx) => ctx.reply('Вітаю у Breath Flow!'));
-bot.help((ctx) => ctx.replyWithHTML(helpMessage));
+// Головне меню при старті
+bot.start((ctx) => {
+  return ctx.replyWithHTML(
+    `Привіт, ${ctx.from.first_name}! 👋\n\nГотовий до ментального перезавантаження?`,
+    Markup.inlineKeyboard([
+      [Markup.button.webApp('🚀 Запустити потік', webAppLink)]
+    ])
+  );
+});
 
-// В ES Modules використовуємо export default замість module.exports
+// Довідка з кнопками
+bot.help((ctx) => {
+  return ctx.replyWithHTML(
+    helpMessage,
+    Markup.inlineKeyboard([
+      [Markup.button.webApp('🧘 Почати дихати', webAppLink)],
+      [Markup.button.url('✍️ Написати відгук', 'https://t.me/erick_demche')]
+    ])
+  );
+});
+
 export default async function handler(req, res) {
   try {
     if (req.method === 'POST') {
       await bot.handleUpdate(req.body);
       return res.status(200).json({ status: 'ok' });
     }
-    return res.status(200).send('Бекенд активний (ES Modules).');
+    return res.status(200).send('Бекенд активний з меню!');
   } catch (err) {
     console.error('Помилка бота:', err);
     return res.status(200).json({ error: err.message });
