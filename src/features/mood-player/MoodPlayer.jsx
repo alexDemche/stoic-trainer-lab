@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, Volume2, VolumeX } from 'lucide-react';
+import { ArrowLeft, Volume2, VolumeX } from 'lucide-react'; // Змінили імпорт
 
 export const MoodPlayer = ({ mood, duration, onBack }) => {
   const [index, setIndex] = useState(0);
   const [images, setImages] = useState([]);
   const [isReady, setIsReady] = useState(false);
-  const [isStarted, setIsStarted] = useState(false); // Для активації звуку/вібрації
+  const [isStarted, setIsStarted] = useState(false);
   const [phase, setPhase] = useState("Вдих");
   const [isMuted, setIsMuted] = useState(false);
   const [timeLeft, setTimeLeft] = useState(duration || 300);
@@ -17,8 +17,12 @@ export const MoodPlayer = ({ mood, duration, onBack }) => {
 
   // 1. Ініціалізація Telegram та завантаження фото
   useEffect(() => {
-    tg?.ready();
-    tg?.expand(); // Розгортаємо на весь екран
+    if (tg) {
+      tg.ready();
+      tg.expand(); // Це критично для iOS Fullscreen
+      // На всякий випадок, повторюємо розширення через невелику затримку, бо іноді iOS тупить
+      setTimeout(() => tg.expand(), 100); 
+    }
 
     const gong = gongRef.current;
     gong.volume = 0.2;
@@ -58,7 +62,7 @@ export const MoodPlayer = ({ mood, duration, onBack }) => {
     };
   }, [mood, tg]);
 
-  // 2. Заборона сну екрана (Wake Lock)
+  // 2. Wake Lock
   useEffect(() => {
     let wakeLock = null;
     const requestWakeLock = async () => {
@@ -84,11 +88,11 @@ export const MoodPlayer = ({ mood, duration, onBack }) => {
     };
   }, [isStarted]);
 
-  // 3. Головний цикл (запускається тільки після натискання "Увійти в потік")
+  // 3. Головний таймер
   useEffect(() => {
     if (!isStarted || !isReady || timeLeft <= 0) return;
 
-    const phases = ["Вдих", "Затримка", "Видих", "Затримка "];
+    const phases = ["Вдих", "Затримка", "Видих", "Затримка"];
     let currentPhaseIdx = 0;
     let secondsInPhase = 0;
 
@@ -101,12 +105,15 @@ export const MoodPlayer = ({ mood, duration, onBack }) => {
         currentPhaseIdx = (currentPhaseIdx + 1) % 4;
         setPhase(phases[currentPhaseIdx]);
 
-        // Вібрація
-        if (tg?.HapticFeedback) {
-          tg.HapticFeedback.impactOccurred('light');
+      // Перевіряємо, чи існує об'єкт HapticFeedback перед викликом
+        if (tg?.HapticFeedback && tg.HapticFeedback.impactOccurred) {
+          try {
+            tg.HapticFeedback.impactOccurred('light');
+          } catch (e) {
+            console.warn("Haptic not supported on this device");
+          }
         }
 
-        // Звук
         if (!isMuted) {
           gongRef.current.currentTime = 0;
           gongRef.current.play().catch(() => {});
@@ -123,7 +130,6 @@ export const MoodPlayer = ({ mood, duration, onBack }) => {
 
   const handleStart = () => {
     setIsStarted(true);
-    // Розблоковуємо аудіо-канал для iOS/Android при першому тапі
     gongRef.current.play().then(() => {
       gongRef.current.pause();
       gongRef.current.currentTime = 0;
@@ -132,7 +138,7 @@ export const MoodPlayer = ({ mood, duration, onBack }) => {
 
   const isExpanded = phase === "Вдих" || phase === "Затримка";
 
-  // Loader та Кнопка СТАРТУ
+  // Екран завантаження / старту
   if (!isReady || !isStarted) return (
     <div className="h-screen w-full bg-[#050505] flex flex-col items-center justify-center text-white p-10 text-center">
       <div className="relative flex items-center justify-center mb-10">
@@ -163,17 +169,30 @@ export const MoodPlayer = ({ mood, duration, onBack }) => {
   return (
     <div className="relative w-full h-screen bg-black overflow-hidden flex flex-col items-center justify-center text-white font-sans">
       
-      {/* ПАНЕЛЬ КЕРУВАННЯ */}
-      <div className="absolute top-12 w-full px-10 z-50 flex justify-between items-center">
-        <button onClick={() => setIsMuted(!isMuted)} className="p-2 text-white/20 hover:text-white/60">
-          {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+      {/* --- ПАНЕЛЬ КЕРУВАННЯ (HEADER) --- */}
+      <div className="absolute top-8 md:top-12 w-full px-6 z-50 flex justify-between items-center">
+        
+        {/* ЛІВА КНОПКА: Назад */}
+        <button 
+          onClick={onBack} 
+          className="p-3 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white/20 transition-all active:scale-95"
+        >
+          <ArrowLeft size={24} />
         </button>
-        <span className="text-white/20 text-[10px] font-mono tracking-[0.5em] italic">
+
+        {/* ЦЕНТР: Таймер */}
+        <span className="text-white/50 text-[10px] font-mono tracking-[0.5em] italic">
           {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
         </span>
-        <button onClick={onBack} className="p-2 text-white/30 hover:text-white transition-colors">
-          <Menu size={24} />
+
+        {/* ПРАВА КНОПКА: Звук */}
+        <button 
+          onClick={() => setIsMuted(!isMuted)} 
+          className="p-3 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white/20 transition-all active:scale-95"
+        >
+          {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
         </button>
+
       </div>
 
       {/* ФОТО */}
