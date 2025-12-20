@@ -20,8 +20,8 @@ export const MoodSelector = ({ onSelect }) => {
         animate={{ opacity: 1 }}
         className="mt-6 mb-2 text-center"
       >
-        <span className="text-white/20 text-[10px] uppercase tracking-[0.5em] font-medium border border-white/10 px-4 py-1.5 rounded-full backdrop-blur-sm">
-          Метод Квадратного дихання • 4-4-4-4
+        <span className="text-white/30 text-[8px] uppercase tracking-[0.5em] font-medium border border-white/10 px-4 py-1.5 rounded-full backdrop-blur-sm">
+          Квадратнe дихання • 4-4-4-4
         </span>
       </motion.div>
       {/* Заголовок */}
