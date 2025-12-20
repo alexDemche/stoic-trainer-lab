@@ -122,6 +122,21 @@ export const MoodSelector = ({ onSelect }) => {
         ))}
       </div>
 
+      {/* СЕКЦІЯ ПРО МЕТОД */}
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.6 }}
+        className="max-w-md mx-auto mt-12 mb-8 p-6 rounded-[24px] bg-white/5 border border-white/5 backdrop-blur-sm"
+      >
+        <h4 className="text-[10px] uppercase tracking-[0.2em] text-white/50 mb-3 font-bold">
+          Що таке дихання квадратом?
+        </h4>
+        <p className="text-xs text-white/40 leading-relaxed font-light italic">
+          Це потужна техніка концентрації, яку використовують професійні атлети та психологи. 
+          Ритм <span className="text-white/60 font-medium">4-4-4-4</span> (вдих 4 секунди, затримка 4 секунди, видих 4 секунди, затримка 4 секунди) миттєво заспокоює нервову систему, знижує рівень кортизолу та повертає фокус у момент "тут і зараз".
+        </p>
+      </motion.div>
       {/* Футер-підказка */}
       <footer className="mt-4 mb-8 text-center text-white/20 text-[10px] uppercase tracking-[0.3em]">
         Метод Квадратного дихання • 4-4-4-4
