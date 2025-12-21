@@ -1,58 +1,62 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Volume2, VolumeX } from 'lucide-react'; // Змінили імпорт
+import { ArrowLeft, Volume2, VolumeX } from 'lucide-react';
+import { MOOD_CONFIG } from '../../data/moodConfig';
 
 export const MoodPlayer = ({ mood, duration, onBack }) => {
-  const [index, setIndex] = useState(0);
-  const [images, setImages] = useState([]);
-  const [isReady, setIsReady] = useState(false);
-  const [isStarted, setIsStarted] = useState(false);
-  const [phase, setPhase] = useState("Вдих");
+  // --- СТАН (STATE) ---
+  const [index, setIndex] = useState(0); // Індекс поточного фото
+  const [images, setImages] = useState([]); // Плейлист фото
+  const [isReady, setIsReady] = useState(false); // Чи завантажені фото
+  const [isStarted, setIsStarted] = useState(false); // Чи натиснуто "Старт"
+  const [phase, setPhase] = useState("Вдих"); // Текст фази
+  const [activePhaseIdx, setActivePhaseIdx] = useState(0); // 0:Вдих, 1:Затримка, 2:Видих, 3:Затримка
   const [isMuted, setIsMuted] = useState(false);
   const [timeLeft, setTimeLeft] = useState(duration || 300);
 
-  const phaseDuration = 4;
+  const phaseDuration = 4; // 4 секунди на кожну фазу (Квадратне дихання)
   const tg = window.Telegram?.WebApp;
   const gongRef = useRef(new Audio("https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3"));
 
-  // 1. Ініціалізація Telegram та завантаження фото
+  // 1. Ініціалізація: Telegram, Аудіо та Рандомайзер фото
   useEffect(() => {
     if (tg) {
       tg.ready();
-      tg.expand(); // Це критично для iOS Fullscreen
-      // На всякий випадок, повторюємо розширення через невелику затримку, бо іноді iOS тупить
-      setTimeout(() => tg.expand(), 100); 
+      tg.expand();
+      setTimeout(() => tg.expand(), 200);
     }
 
     const gong = gongRef.current;
     gong.volume = 0.2;
-    gong.preload = "auto";
     gong.load();
 
     if (!mood) return;
     setIsReady(false);
-    
-    const searchQueries = { 
-      love: 'couple,romance,tender', 
-      money: 'wealth,luxury,gold', 
-      energy: 'fire,dynamic,abstract', 
-      calm: 'mist,zen,ocean', 
-      focus: 'geometry,minimal,space' 
-    };
-    const query = searchQueries[mood.id] || 'abstract';
 
-    const newImages = Array.from({ length: 15 }, (_, i) => 
-      `https://loremflickr.com/800/1200/${query}/all?lock=${i + 3000}`
-    );
-
-    const img = new Image();
-    img.src = newImages[0];
-    img.onload = () => {
-      setImages(newImages);
-      setTimeout(() => setIsReady(true), 2000); 
+    // Логіка створення випадкового плейлиста з локальних WebP фото
+    const config = MOOD_CONFIG[mood.id] || MOOD_CONFIG.calm;
+    const generateRandomPlaylist = () => {
+      const total = config.totalImages;
+      const nums = Array.from({ length: total }, (_, i) => i + 1);
+      // Перемішування Фішера-Єйтса
+      for (let i = nums.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [nums[i], nums[j]] = [nums[j], nums[i]];
+      }
+      return nums.map(num => `${config.basePath}${num}.webp`);
     };
-    img.onerror = () => {
-      setImages(newImages);
+
+    const playlist = generateRandomPlaylist();
+
+    // Прелоад першої картинки для миттєвого старту
+    const firstImg = new Image();
+    firstImg.src = playlist[0];
+    firstImg.onload = () => {
+      setImages(playlist);
+      setTimeout(() => setIsReady(true), 1500);
+    };
+    firstImg.onerror = () => {
+      setImages(playlist);
       setIsReady(true);
     };
 
@@ -62,7 +66,7 @@ export const MoodPlayer = ({ mood, duration, onBack }) => {
     };
   }, [mood, tg]);
 
-  // 2. Wake Lock
+  // 2. Wake Lock: Заборона вимкнення екрану під час практики
   useEffect(() => {
     let wakeLock = null;
     const requestWakeLock = async () => {
@@ -88,40 +92,47 @@ export const MoodPlayer = ({ mood, duration, onBack }) => {
     };
   }, [isStarted]);
 
-  // 3. Головний таймер
+  // 3. ГОЛОВНИЙ ТАЙМЕР ТА ЦИКЛ ДИХАННЯ
   useEffect(() => {
     if (!isStarted || !isReady || timeLeft <= 0) return;
 
     const phases = ["Вдих", "Затримка", "Видих", "Затримка"];
-    let currentPhaseIdx = 0;
     let secondsInPhase = 0;
 
     const mainTimer = setInterval(() => {
+      // 1. Відлік загального часу
       setTimeLeft(prev => (prev > 0 ? prev - 1 : 0));
 
+      // 2. Логіка фаз дихання
       secondsInPhase++;
       if (secondsInPhase >= phaseDuration) {
         secondsInPhase = 0;
-        currentPhaseIdx = (currentPhaseIdx + 1) % 4;
-        setPhase(phases[currentPhaseIdx]);
 
-      // Перевіряємо, чи існує об'єкт HapticFeedback перед викликом
-        if (tg?.HapticFeedback && tg.HapticFeedback.impactOccurred) {
-          try {
-            tg.HapticFeedback.impactOccurred('light');
-          } catch (e) {
-            console.warn("Haptic not supported on this device");
+        // Оновлюємо індекс фази (0 -> 1 -> 2 -> 3 -> 0)
+        setActivePhaseIdx((currentIdx) => {
+          const nextIdx = (currentIdx + 1) % 4;
+          setPhase(phases[nextIdx]);
+
+          // Вібрація (безпечна перевірка для старих версій Telegram)
+          if (tg?.HapticFeedback?.impactOccurred) {
+            try {
+              tg.HapticFeedback.impactOccurred('light');
+            } catch (e) {}
           }
-        }
 
-        if (!isMuted) {
-          gongRef.current.currentTime = 0;
-          gongRef.current.play().catch(() => {});
-        }
+          // Звуковий сигнал (гонг)
+          if (!isMuted) {
+            gongRef.current.currentTime = 0;
+            gongRef.current.play().catch(() => {});
+          }
 
-        if (currentPhaseIdx === 0) {
-          setIndex(prev => (prev + 1) % (images.length || 1));
-        }
+          // Зміна фонового фото (тільки на початку нового повного циклу)
+          if (nextIdx === 0) {
+            setIndex(prev => (prev + 1) % (images.length || 1));
+          }
+
+          return nextIdx;
+        });
       }
     }, 1000);
 
@@ -130,15 +141,18 @@ export const MoodPlayer = ({ mood, duration, onBack }) => {
 
   const handleStart = () => {
     setIsStarted(true);
+    // Розблокування аудіо для мобільних браузерів
     gongRef.current.play().then(() => {
       gongRef.current.pause();
       gongRef.current.currentTime = 0;
     }).catch(() => {});
   };
 
-  const isExpanded = phase === "Вдих" || phase === "Затримка";
+  // --- ЛОГІКА АНІМАЦІЇ КОЛА ---
+  // Коло велике під час Вдиху (0) та першої Затримки (1)
+  const isExpanded = activePhaseIdx === 0 || activePhaseIdx === 1;
 
-  // Екран завантаження / старту
+  // Екран завантаження або очікування старту
   if (!isReady || !isStarted) return (
     <div className="h-screen w-full bg-[#050505] flex flex-col items-center justify-center text-white p-10 text-center">
       <div className="relative flex items-center justify-center mb-10">
@@ -169,10 +183,8 @@ export const MoodPlayer = ({ mood, duration, onBack }) => {
   return (
     <div className="relative w-full h-screen bg-black overflow-hidden flex flex-col items-center justify-center text-white font-sans">
       
-      {/* --- ПАНЕЛЬ КЕРУВАННЯ (HEADER) --- */}
+      {/* ПАНЕЛЬ КЕРУВАННЯ */}
       <div className="absolute top-8 md:top-12 w-full px-6 z-50 flex justify-between items-center">
-        
-        {/* ЛІВА КНОПКА: Назад */}
         <button 
           onClick={onBack} 
           className="p-3 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white/20 transition-all active:scale-95"
@@ -180,22 +192,19 @@ export const MoodPlayer = ({ mood, duration, onBack }) => {
           <ArrowLeft size={24} />
         </button>
 
-        {/* ЦЕНТР: Таймер */}
-        <span className="text-white/50 text-[10px] font-mono tracking-[0.5em] italic">
+        <span className="text-white/40 text-[10px] font-mono tracking-[0.5em] italic">
           {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
         </span>
 
-        {/* ПРАВА КНОПКА: Звук */}
         <button 
           onClick={() => setIsMuted(!isMuted)} 
           className="p-3 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white/20 transition-all active:scale-95"
         >
           {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
         </button>
-
       </div>
 
-      {/* ФОТО */}
+      {/* ФОНОВІ ЗОБРАЖЕННЯ */}
       <div className="absolute inset-0 z-0">
         <AnimatePresence mode="wait">
           <motion.img
@@ -208,6 +217,7 @@ export const MoodPlayer = ({ mood, duration, onBack }) => {
             className="w-full h-full object-cover brightness-[0.45]"
           />
         </AnimatePresence>
+        {/* Затемнюючий шар для другої половини циклу (Видих/Затримка) */}
         <motion.div 
           animate={{ opacity: isExpanded ? 0 : 0.35 }}
           transition={{ duration: phaseDuration, ease: "easeInOut" }}
@@ -215,12 +225,13 @@ export const MoodPlayer = ({ mood, duration, onBack }) => {
         />
       </div>
 
-      {/* КОЛО ТА ФАЗА */}
+      {/* ДИХАЛЬНЕ КОЛО */}
+
       <div className="relative z-30 mb-40">
         <motion.div 
           animate={{ scale: isExpanded ? 1.4 : 1 }}
           transition={{ duration: phaseDuration, ease: "easeInOut" }}
-          className="w-44 h-44 border border-white/30 rounded-full flex items-center justify-center bg-white/5 backdrop-blur-[1.5px]"
+          className="w-44 h-44 border border-white/30 rounded-full flex items-center justify-center bg-white/5 backdrop-blur-[2px]"
         >
           <AnimatePresence mode="wait">
             <motion.span
@@ -229,7 +240,7 @@ export const MoodPlayer = ({ mood, duration, onBack }) => {
               transition={{ duration: 1 }}
               className="text-[11px] text-white/70 uppercase tracking-[0.5em] font-light"
             >
-              {phase.trim()}
+              {phase}
             </motion.span>
           </AnimatePresence>
         </motion.div>
@@ -251,7 +262,7 @@ export const MoodPlayer = ({ mood, duration, onBack }) => {
         </AnimatePresence>
       </div>
       
-      {/* ФІНАЛ */}
+      {/* ЕКРАН ЗАВЕРШЕННЯ */}
       <AnimatePresence>
         {timeLeft === 0 && (
           <motion.div 
