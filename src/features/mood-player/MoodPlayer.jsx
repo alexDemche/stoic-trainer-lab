@@ -206,18 +206,23 @@ export const MoodPlayer = ({ mood, duration, onBack }) => {
 
       {/* ФОНОВІ ЗОБРАЖЕННЯ */}
       <div className="absolute inset-0 z-0">
-        <AnimatePresence mode="wait">
+        {/* 1. Прибираємо mode="wait" для паралельної анімації */}
+        <AnimatePresence>
           <motion.img
             key={index}
             src={images[index]}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 4 }}
-            className="w-full h-full object-cover brightness-[0.45]"
+            // 2. Я трохи зменшив час до 2.5с, бо 4с для крос-фейду може бути задовго.
+            // Спробуй так, якщо захочеться повільніше - повернеш 4.
+            transition={{ duration: 2.5, ease: "easeInOut" }}
+            // 3. ВАЖЛИВО: Додаємо 'absolute inset-0', щоб картинки накладалися
+            className="absolute inset-0 w-full h-full object-cover brightness-[0.45]"
           />
         </AnimatePresence>
-        {/* Затемнюючий шар для другої половини циклу (Видих/Затримка) */}
+        
+        {/* Затемнюючий шар */}
         <motion.div 
           animate={{ opacity: isExpanded ? 0 : 0.35 }}
           transition={{ duration: phaseDuration, ease: "easeInOut" }}
