@@ -33,7 +33,9 @@ const helpText = `
 // Головне меню
 const getMainMenu = () => Markup.inlineKeyboard([
   [Markup.button.webApp('🧘 Почати дихати', webAppLink)], 
-  [Markup.button.callback('📖 Як це працює?', 'help_action')] // Тільки одна кнопка знизу
+  [Markup.button.callback('📖 Як це працює?', 'help_action')],
+  // Посилання на мій другий проект
+  [Markup.button.url('🏛️ Stoic Trainer', 'https://t.me/StoicTrainer_ua_bot')]
 ]);
 
 // Кнопка "Назад"
