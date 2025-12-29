@@ -5,46 +5,40 @@ import importedWords from '../../data/words.json';
 export const SleepShuffler = () => {
   const [word, setWord] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
-  const audioRef = useRef(null);
+
+  // Створюємо реф на аудіо за аналогією з gongRef у Breath Flow
+  const audioRef = useRef(new Audio());
 
   const words = (importedWords && importedWords.length > 0) 
     ? importedWords 
     : ["Сон", "Тиша", "Спокій", "Темрява", "Зірки"];
 
-  const playAudio = (text) => {
-    // 1. Очищуємо попередній аудіо-об'єкт, якщо він був
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.src = "";
-      audioRef.current.load();
-    }
-
-    // 2. Використовуємо альтернативне посилання з фіксованим клієнтом
-    // Це посилання зазвичай працює стабільніше для мобільних WebView
-    const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=uk&client=tw-ob`;
+  const playWord = (text) => {
+    const audio = audioRef.current;
     
-    const audio = new Audio();
+    // Формуємо посилання (додаємо проксі-параметри для кращої сумісності)
+    const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=uk&client=tw-ob&q=${encodeURIComponent(text)}`;
+    
     audio.src = url;
-    audioRef.current = audio;
+    audio.load(); // Примусове завантаження
 
-    // 3. Спроба відтворення
-    audio.play().catch(e => {
-      console.error("Audio play failed:", e);
-      // Якщо Google блокує, можна додати резервний варіант тут
-    });
+    // Важливо: граємо лише після кліку або в активному стані
+    audio.play().catch(e => console.log("Playback blocked or failed:", e));
   };
 
   const handleStart = () => {
     if (isPlaying) {
       setIsPlaying(false);
-      if (audioRef.current) audioRef.current.pause();
+      audioRef.current.pause();
       return;
     }
 
     setIsPlaying(true);
     const firstWord = words[Math.floor(Math.random() * words.length)];
     setWord(firstWord);
-    playAudio(firstWord);
+
+    // "Розблоковуємо" аудіо-движок першим звуком
+    playWord(firstWord);
   };
 
   useEffect(() => {
@@ -53,16 +47,19 @@ export const SleepShuffler = () => {
       interval = setInterval(() => {
         const nextWord = words[Math.floor(Math.random() * words.length)];
         setWord(nextWord);
-        playAudio(nextWord);
-      }, 6000); // 6 секунд дає час аудіо завантажитись і програтись
+        playWord(nextWord);
+      }, 6000);
     }
     return () => clearInterval(interval);
   }, [isPlaying]);
 
+  // Очистка при виході
   useEffect(() => {
     return () => {
-      if (audioRef.current) audioRef.current.pause();
-      window.speechSynthesis?.cancel(); // Про всяк випадок зупиняємо системний голос
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = "";
+      }
     };
   }, []);
 
@@ -80,16 +77,24 @@ export const SleepShuffler = () => {
             {word}
           </motion.h1>
         ) : (
-          <h2 className="text-xl text-white/50 tracking-widest uppercase">Когнітивний потік</h2>
+          <h2 className="text-xl text-white/50 tracking-widest uppercase italic">Когнітивний потік</h2>
         )}
       </AnimatePresence>
 
       <button
         onClick={handleStart}
-        className={`mt-12 px-10 py-4 rounded-full border border-white/10 uppercase tracking-[0.2em] text-[10px] transition-all ${isPlaying ? 'bg-red-500/10 text-red-200' : 'bg-white/5 text-white'}`}
+        className={`mt-12 px-10 py-4 rounded-full border border-white/10 uppercase tracking-[0.2em] text-[10px] transition-all active:scale-95 ${
+          isPlaying ? 'bg-red-500/10 text-red-200 border-red-500/20' : 'bg-white/5 text-white'
+        }`}
       >
-        {isPlaying ? 'Зупинити' : 'Почати занурення'}
+        {isPlaying ? 'ЗУПИНИТИ' : 'ПОЧАТИ ЗАНУРЕННЯ'}
       </button>
+
+      {!isPlaying && (
+        <p className="mt-6 text-[9px] text-white/20 uppercase tracking-[0.2em]">
+          Техніка когнітивного перемішування
+        </p>
+      )}
     </div>
   );
 };
