@@ -6,46 +6,59 @@ export const SleepShuffler = () => {
   const [word, setWord] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
   
-  // Резервні слова на випадок помилки імпорту
   const words = (importedWords && importedWords.length > 0) 
     ? importedWords 
     : ["Спокій", "Тиша", "Сон", "Ніч", "Зірки"];
 
   const speak = (text) => {
-    // Скасовуємо все, що черзі
-    window.speechSynthesis.cancel();
+    try {
+      // Перевірка наявності API
+      if (!window.speechSynthesis) return;
 
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'uk-UA';
-    utterance.rate = 0.7; // Повільно для сну
-    utterance.volume = 1.0;
+      window.speechSynthesis.cancel();
 
-    // Важливо: для деяких Android потрібно знайти голос явно
-    const voices = window.speechSynthesis.getVoices();
-    const ukVoice = voices.find(v => v.lang.includes('uk'));
-    if (ukVoice) utterance.voice = ukVoice;
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'uk-UA';
+      utterance.rate = 0.7;
+      utterance.volume = 1.0;
 
-    window.speechSynthesis.speak(utterance);
+      // Безпечне отримання голосів
+      const voices = window.speechSynthesis.getVoices();
+      if (voices && voices.length > 0) {
+        const ukVoice = voices.find(v => v.lang.includes('uk'));
+        if (ukVoice) utterance.voice = ukVoice;
+      }
+
+      window.speechSynthesis.speak(utterance);
+    } catch (error) {
+      console.error("Speech error caught:", error);
+    }
   };
 
   const handleStart = () => {
-    if (isPlaying) {
+    try {
+      if (isPlaying) {
+        setIsPlaying(false);
+        if (window.speechSynthesis) window.speechSynthesis.cancel();
+        return;
+      }
+
+      // Активація через пустий звук (синхронно з кліком)
+      if (window.speechSynthesis) {
+        const silent = new SpeechSynthesisUtterance(" ");
+        window.speechSynthesis.speak(silent);
+      }
+
+      setIsPlaying(true);
+      const firstWord = words[Math.floor(Math.random() * words.length)];
+      setWord(firstWord);
+      
+      // Виклик озвучки
+      speak(firstWord);
+    } catch (error) {
+      console.error("HandleStart crash prevented:", error);
       setIsPlaying(false);
-      window.speechSynthesis.cancel();
-      return;
     }
-
-    // --- КРИТИЧНИЙ ХАК ДЛЯ МОБІЛЬНИХ ---
-    // Це розблоковує аудіо-движок відразу при натисканні
-    const silent = new SpeechSynthesisUtterance(" ");
-    window.speechSynthesis.speak(silent);
-
-    setIsPlaying(true);
-    const firstWord = words[Math.floor(Math.random() * words.length)];
-    setWord(firstWord);
-    
-    // Запускаємо голос негайно
-    speak(firstWord);
   };
 
   useEffect(() => {
@@ -59,7 +72,7 @@ export const SleepShuffler = () => {
     }
     return () => {
       clearInterval(interval);
-      window.speechSynthesis.cancel();
+      if (window.speechSynthesis) window.speechSynthesis.cancel();
     };
   }, [isPlaying]);
 
@@ -79,7 +92,6 @@ export const SleepShuffler = () => {
         ) : (
           <div className="space-y-4">
             <h2 className="text-xl text-white/50 tracking-widest uppercase italic">Когнітивний потік</h2>
-            <p className="text-[10px] text-white/20 uppercase tracking-widest">Візуалізуй кожне слово</p>
           </div>
         )}
       </AnimatePresence>
@@ -93,15 +105,16 @@ export const SleepShuffler = () => {
         {isPlaying ? 'ЗУПИНИТИ' : 'ПОЧАТИ ЗАНУРЕННЯ'}
       </button>
 
-      {isPlaying && (
-        <motion.p 
-          initial={{ opacity: 0 }} 
-          animate={{ opacity: 1 }} 
-          className="mt-8 text-[9px] text-white/10 uppercase tracking-[0.3em]"
-        >
-          Практика триває...
-        </motion.p>
-      )}
+      <div className="mt-10 h-1 w-32 bg-white/5 rounded-full overflow-hidden">
+        {isPlaying && (
+          <motion.div 
+            initial={{ width: "0%" }}
+            animate={{ width: "100%" }}
+            transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
+            className="h-full bg-white/20"
+          />
+        )}
+      </div>
     </div>
   );
 };
