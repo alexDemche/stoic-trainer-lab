@@ -6,97 +6,98 @@ export const SleepShuffler = ({ onFinish }) => {
   const [word, setWord] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
   const [voices, setVoices] = useState([]);
+  const [logs, setLogs] = useState(["Готовий до роботи..."]); // ЛОГИ
 
-  // --- ЗАХИСТ ВІД КРАШУ (Safety Check) ---
-  // Якщо words.json не підтягнувся, використовуємо резервний масив.
-  // Це гарантує, що кнопка "Почати" з'явиться завжди.
+  // Функція для запису логів на екран
+  const addLog = (msg) => {
+    setLogs(prev => [msg, ...prev].slice(0, 5)); // Тримаємо останні 5 логів
+    console.log(msg);
+  };
+
   const words = (importedWords && importedWords.length > 0) 
     ? importedWords 
-    : ["Спокій", "Тиша", "Сон", "Ніч", "Дихання", "Розслаблення", "Темрява", "Зірки"];
+    : ["Сон", "Тиша", "Спокій"];
 
-  // --- ЗАВАНТАЖЕННЯ ГОЛОСІВ (Android Fix) ---
+  // 1. Завантаження голосів
   useEffect(() => {
     const synth = window.speechSynthesis;
-    
+    if (!synth) {
+      addLog("❌ Speech API не підтримується цим браузером");
+      return;
+    }
+
     const loadVoices = () => {
-      const availableVoices = synth.getVoices();
-      if (availableVoices.length > 0) {
-        setVoices(availableVoices);
-      }
+      const vs = synth.getVoices();
+      addLog(`🗣️ Голоси оновлено: знайдено ${vs.length}`);
+      setVoices(vs);
     };
 
     loadVoices();
-    
-    // Android/Chrome потребують підписки на подію
     if (synth.onvoiceschanged !== undefined) {
       synth.onvoiceschanged = loadVoices;
     }
-
-    // Хак для деяких Android: примусова спроба через 100мс
-    const timeout = setTimeout(loadVoices, 500);
-
-    return () => {
-      synth.onvoiceschanged = null;
-      clearTimeout(timeout);
-    };
   }, []);
 
-  // --- ФУНКЦІЯ ОЗВУЧКИ ---
-  const speakNow = (text) => {
-    // Скасовуємо попередні фрази, щоб не було черги
-    window.speechSynthesis.cancel();
+  // 2. Функція озвучки
+  const speak = (text) => {
+    try {
+      const synth = window.speechSynthesis;
+      if (!synth) return;
 
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.8; // Трохи повільніше
-    utterance.pitch = 1;
-    utterance.volume = 1;
+      synth.cancel(); // Скидання черги
 
-    // Шукаємо український голос, якщо немає - беремо перший доступний
-    const ukVoice = voices.find(v => v.lang.includes('uk')) || voices[0];
-    if (ukVoice) utterance.voice = ukVoice;
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 0.8;
+      
+      // Спроба знайти голос
+      const ukVoice = voices.find(v => v.lang.includes('uk')) || voices[0];
+      if (ukVoice) {
+        utterance.voice = ukVoice;
+      }
 
-    window.speechSynthesis.speak(utterance);
+      utterance.onstart = () => addLog(`▶️ Грає: ${text}`);
+      utterance.onerror = (e) => addLog(`❌ Помилка озвучки: ${e.error}`);
+
+      synth.speak(utterance);
+    } catch (e) {
+      addLog(`❌ Crash: ${e.message}`);
+    }
   };
 
-  // --- ОБРОБНИК КЛІКУ (Start/Stop) ---
+  // 3. Старт/Стоп
   const handleStart = () => {
     if (isPlaying) {
       setIsPlaying(false);
       window.speechSynthesis.cancel();
+      addLog("⏹️ Зупинено користувачем");
       return;
     }
 
-    // Захист: якщо слів все ще немає, виходимо
-    if (!words || words.length === 0) return;
-
-    // 1. Обираємо перше слово
+    addLog("🟢 Старт натиснуто");
+    
+    // Вибираємо слово
     const firstWord = words[Math.floor(Math.random() * words.length)];
     setWord(firstWord);
     setIsPlaying(true);
 
-    // 2. iOS/Android FIX: Запускаємо звук синхронно з кліком
-    // Спочатку пустий звук для активації динаміка
-    const silent = new SpeechSynthesisUtterance(" ");
-    window.speechSynthesis.speak(silent);
-
-    // Потім реальне слово
-    speakNow(firstWord);
+    // ВАЖЛИВО: Запускаємо відразу
+    speak(firstWord);
   };
 
-  // --- ТАЙМЕР ---
+  // 4. Таймер
   useEffect(() => {
     let interval;
     if (isPlaying) {
       interval = setInterval(() => {
         const nextWord = words[Math.floor(Math.random() * words.length)];
         setWord(nextWord);
-        speakNow(nextWord);
+        speak(nextWord);
       }, 5000);
     }
     return () => clearInterval(interval);
-  }, [isPlaying, voices, words]);
+  }, [isPlaying, voices]);
 
-  // --- ОЧИСТКА ПРИ ВИХОДІ ---
+  // Очистка
   useEffect(() => {
     return () => {
       window.speechSynthesis.cancel();
@@ -105,40 +106,39 @@ export const SleepShuffler = ({ onFinish }) => {
   }, []);
 
   return (
-    <div className="flex flex-col items-center justify-center h-[70vh] text-center">
+    <div className="flex flex-col items-center justify-center h-[80vh] text-center relative">
       <AnimatePresence mode="wait">
         {isPlaying ? (
           <motion.h1
             key={word}
-            initial={{ opacity: 0, scale: 0.8, filter: "blur(10px)" }}
-            animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-            exit={{ opacity: 0, scale: 1.2, filter: "blur(5px)" }}
-            transition={{ duration: 1 }}
-            className="text-4xl md:text-5xl font-light tracking-widest text-white mb-10 mt-10"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.2 }}
+            className="text-4xl font-light tracking-widest text-white mb-10 mt-10"
           >
             {word}
           </motion.h1>
         ) : (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-10 mt-10">
+          <div className="mb-10 mt-10">
             <h2 className="text-xl text-white/50 tracking-[0.2em] uppercase">Когнітивний потік</h2>
-          </motion.div>
+          </div>
         )}
       </AnimatePresence>
 
       <button
         onClick={handleStart}
-        className={`
-          px-10 py-4 rounded-full border border-white/10 uppercase tracking-[0.2em] text-xs transition-all active:scale-95
-          ${isPlaying ? 'bg-red-500/10 text-red-200 border-red-500/20' : 'bg-white/5 text-white hover:bg-white/10'}
-        `}
+        className={`px-10 py-4 rounded-full border border-white/10 uppercase tracking-[0.2em] text-xs ${isPlaying ? 'bg-red-500/10' : 'bg-white/5'}`}
       >
-        {isPlaying ? 'Зупинити' : 'Почати занурення'}
+        {isPlaying ? 'Зупинити' : 'Почати'}
       </button>
 
-      {/* Підказка */}
-      <p className="mt-8 text-[9px] text-white/20 max-w-[200px] mx-auto leading-relaxed">
-        *Якщо немає звуку: перевірте гучність медіа та вимкніть беззвучний режим (iPhone).
-      </p>
+      {/* --- ЕКРАННИЙ ЛОГЕР (ДЛЯ ТЕСТУ) --- */}
+      <div className="absolute bottom-0 w-full p-4 text-[10px] text-left font-mono text-green-400 bg-black/80 rounded-t-xl overflow-hidden pointer-events-none">
+        <p className="text-white/50 border-b border-white/10 mb-2">SYSTEM LOGS:</p>
+        {logs.map((log, i) => (
+          <div key={i}>{log}</div>
+        ))}
+      </div>
     </div>
   );
 };
