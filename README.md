@@ -1,16 +1,66 @@
-# React + Vite
+🏛️ Stoic Trainer Lab
+Stoic Lab — це інтерактивний хаб психологічних та стоїчних практик, реалізований як Telegram Web App (TWA). Проєкт є частиною екосистеми Stoic Trainer і фокусується на практичних інструментах для досягнення ментальної стійкості (Атараксії).
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+🚀 Основні функції
+На даний момент у "Лабораторії" доступні:
 
-Currently, two official plugins are available:
+🫁 Breath Flow — тренажер квадратного дихання (ритм 4-4-4-4). Використовує афірмації та візуальні потоки для зниження рівня кортизолу.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+🌙 Sleep Shuffler — техніка когнітивного перемішування для швидкого засинання. Використовує Text-to-Speech (TTS) для озвучення випадкових об'єктів, що допомагає "вимкнути" тривожний потік думок.
 
-## React Compiler
+🧩 Stoic Hub Interface — мінімалістичний інтерфейс у стилі "Dark Glass" для швидкого доступу до практик прямо з Telegram.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+🛠 Технологічний стек
+Frontend: React, Vite, Framer Motion (для плавних анімацій), Tailwind CSS.
 
-## Expanding the ESLint configuration
+Routing: React Router DOM (масштабована архітектура роутів).
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Telegram Integration: Telegram Web Apps API.
+
+Deployment: Vercel.
+
+📂 Структура проекту
+Plaintext
+
+src/
+├── components/         # Спільні компоненти (напр. TelegramBackButton)
+├── data/               # Статичні дані (слова для сну, конфіги)
+├── features/           # Логіка за принципом Feature-based architecture
+│   ├── mood-player/    # Плеєр для дихання
+│   └── sleep/          # Логіка когнітивного перемішування
+├── pages/              # Сторінки додатку (Home, Breath, Sleep)
+└── hooks/              # Кастомні хуки (useTelegram, useAudio)
+
+🏗 Архітектура екосистеми
+Проєкт працює в синергії з основним ботом:
+
+Stoic Trainer (Railway + PostgreSQL): "Мозок" системи. Теорія, 365 уроків стоїцизму, збереження прогресу.
+
+StoicTrainer Lab (Vercel + React, Vite): "Тіло" системи. Інтерактивні практики, робота з диханням та сном у реальному часі.
+
+🔧 Налаштування для розробки
+Клонуйте репозиторій:
+
+Bash
+
+git clone https://github.com/ваш-юзернейм/stoic-lab-hub.git
+Встановіть залежності:
+
+Bash
+
+npm install
+Створіть .env файл та додайте BOT_TOKEN від вашого нового бота.
+
+Запустіть локально:
+
+Bash
+
+npm run dev
+📈 Плани розвитку (Roadmap)
+[ ] Додавання техніки прогресивної релаксації.
+
+[ ] Створення віджетів для головного екрана (React Native).
+
+[ ] Впровадження AI-аналітики стану користувача.
+
+Розроблено з принципами стоїцизму в основі. 🏛️
