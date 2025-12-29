@@ -5,40 +5,47 @@ import importedWords from '../../data/words.json';
 export const SleepShuffler = () => {
   const [word, setWord] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
-
-  // Створюємо реф на аудіо за аналогією з gongRef у Breath Flow
-  const audioRef = useRef(new Audio());
-
+  
+  // Резервні слова на випадок помилки імпорту
   const words = (importedWords && importedWords.length > 0) 
     ? importedWords 
-    : ["Сон", "Тиша", "Спокій", "Темрява", "Зірки"];
+    : ["Спокій", "Тиша", "Сон", "Ніч", "Зірки"];
 
-  const playWord = (text) => {
-    const audio = audioRef.current;
-    
-    // Формуємо посилання (додаємо проксі-параметри для кращої сумісності)
-    const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=uk&client=tw-ob&q=${encodeURIComponent(text)}`;
-    
-    audio.src = url;
-    audio.load(); // Примусове завантаження
+  const speak = (text) => {
+    // Скасовуємо все, що черзі
+    window.speechSynthesis.cancel();
 
-    // Важливо: граємо лише після кліку або в активному стані
-    audio.play().catch(e => console.log("Playback blocked or failed:", e));
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'uk-UA';
+    utterance.rate = 0.7; // Повільно для сну
+    utterance.volume = 1.0;
+
+    // Важливо: для деяких Android потрібно знайти голос явно
+    const voices = window.speechSynthesis.getVoices();
+    const ukVoice = voices.find(v => v.lang.includes('uk'));
+    if (ukVoice) utterance.voice = ukVoice;
+
+    window.speechSynthesis.speak(utterance);
   };
 
   const handleStart = () => {
     if (isPlaying) {
       setIsPlaying(false);
-      audioRef.current.pause();
+      window.speechSynthesis.cancel();
       return;
     }
+
+    // --- КРИТИЧНИЙ ХАК ДЛЯ МОБІЛЬНИХ ---
+    // Це розблоковує аудіо-движок відразу при натисканні
+    const silent = new SpeechSynthesisUtterance(" ");
+    window.speechSynthesis.speak(silent);
 
     setIsPlaying(true);
     const firstWord = words[Math.floor(Math.random() * words.length)];
     setWord(firstWord);
-
-    // "Розблоковуємо" аудіо-движок першим звуком
-    playWord(firstWord);
+    
+    // Запускаємо голос негайно
+    speak(firstWord);
   };
 
   useEffect(() => {
@@ -47,21 +54,14 @@ export const SleepShuffler = () => {
       interval = setInterval(() => {
         const nextWord = words[Math.floor(Math.random() * words.length)];
         setWord(nextWord);
-        playWord(nextWord);
+        speak(nextWord);
       }, 6000);
     }
-    return () => clearInterval(interval);
-  }, [isPlaying]);
-
-  // Очистка при виході
-  useEffect(() => {
     return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.src = "";
-      }
+      clearInterval(interval);
+      window.speechSynthesis.cancel();
     };
-  }, []);
+  }, [isPlaying]);
 
   return (
     <div className="flex flex-col items-center justify-center h-[70vh] text-center">
@@ -77,7 +77,10 @@ export const SleepShuffler = () => {
             {word}
           </motion.h1>
         ) : (
-          <h2 className="text-xl text-white/50 tracking-widest uppercase italic">Когнітивний потік</h2>
+          <div className="space-y-4">
+            <h2 className="text-xl text-white/50 tracking-widest uppercase italic">Когнітивний потік</h2>
+            <p className="text-[10px] text-white/20 uppercase tracking-widest">Візуалізуй кожне слово</p>
+          </div>
         )}
       </AnimatePresence>
 
@@ -90,10 +93,14 @@ export const SleepShuffler = () => {
         {isPlaying ? 'ЗУПИНИТИ' : 'ПОЧАТИ ЗАНУРЕННЯ'}
       </button>
 
-      {!isPlaying && (
-        <p className="mt-6 text-[9px] text-white/20 uppercase tracking-[0.2em]">
-          Техніка когнітивного перемішування
-        </p>
+      {isPlaying && (
+        <motion.p 
+          initial={{ opacity: 0 }} 
+          animate={{ opacity: 1 }} 
+          className="mt-8 text-[9px] text-white/10 uppercase tracking-[0.3em]"
+        >
+          Практика триває...
+        </motion.p>
       )}
     </div>
   );
