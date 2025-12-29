@@ -21,14 +21,21 @@ export const SleepShuffler = () => {
     // Додай сюди решту своїх слів
   ];
 
-  const playLocalWord = (wordObj) => {
+const playLocalWord = (wordObj) => {
     try {
       const audio = audioRef.current;
       audio.src = `/audio/words/${wordObj.id}.mp3`;
+      
+      // Примусово завантажуємо файл
       audio.load();
-      audio.play().catch(e => console.warn("Аудіо заблоковано браузером"));
+
+      // Використовуємо проміс для відтворення, щоб уникнути помилок переривання
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(e => console.warn("Аудіо заблоковано або не встигло завантажитись"));
+      }
     } catch (e) {
-      // Мовчазна помилка, щоб нічого не крашилось
+      console.error(e);
     }
   };
 
@@ -39,9 +46,14 @@ export const SleepShuffler = () => {
       return;
     }
 
-    setIsPlaying(true);
+    // Отримуємо перше слово відразу
     const firstWord = wordsData[Math.floor(Math.random() * wordsData.length)];
+    
+    // Спочатку міняємо стейт
     setWord(firstWord.text);
+    setIsPlaying(true);
+
+    // І ТУТ ЖЕ запускаємо звук, не чекаючи ні мілісекунди
     playLocalWord(firstWord);
   };
 
