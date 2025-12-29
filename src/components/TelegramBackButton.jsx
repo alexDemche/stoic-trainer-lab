@@ -1,31 +1,30 @@
 import { useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 export const TelegramBackButton = () => {
-  const location = useLocation();
   const navigate = useNavigate();
-  const tg = window.Telegram?.WebApp;
+  const location = useLocation();
 
   useEffect(() => {
+    const tg = window.Telegram?.WebApp;
     if (!tg) return;
 
-    // Показуємо кнопку всюди, крім Головної ('/')
-    if (location.pathname !== '/') {
-      tg.BackButton.show();
-    } else {
+    if (location.pathname === '/') {
       tg.BackButton.hide();
+    } else {
+      tg.BackButton.show();
     }
 
-    const handleBack = () => {
-      navigate('/'); // Завжди повертаємо на головну
+    const handleBackClick = () => {
+      navigate(-1); // Повертаємось на попередню сторінку в історії React
     };
 
-    tg.onEvent('backButtonClicked', handleBack);
+    tg.BackButton.onClick(handleBackClick);
 
     return () => {
-      tg.offEvent('backButtonClicked', handleBack);
+      tg.BackButton.offClick(handleBackClick);
     };
-  }, [location, navigate, tg]);
+  }, [location, navigate]);
 
-  return null;
+  return null; // Компонент нічого не малює, лише логіка
 };

@@ -5,70 +5,50 @@ import importedWords from '../../data/words.json';
 export const SleepShuffler = () => {
   const [word, setWord] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
-  const [voicesLoaded, setVoicesLoaded] = useState(false);
   
+  // Використовуємо один стабільний реф для аудіо
+  const audioRef = useRef(new Audio());
+
   const words = (importedWords && importedWords.length > 0) 
     ? importedWords 
     : ["Спокій", "Тиша", "Сон", "Ніч", "Зірки"];
 
-  // 1. Попереднє завантаження голосів (критично для Android)
-  useEffect(() => {
-    const loadVoices = () => {
-      const vs = window.speechSynthesis.getVoices();
-      if (vs.length > 0) setVoicesLoaded(true);
-    };
-
-    loadVoices();
-    if (window.speechSynthesis.onvoiceschanged !== undefined) {
-      window.speechSynthesis.onvoiceschanged = loadVoices;
-    }
-  }, []);
-
-  const speak = (text, isWarmup = false) => {
+  const playVoice = (text) => {
     try {
-      if (!window.speechSynthesis) return;
-
-      window.speechSynthesis.cancel(); // Очищуємо чергу
-
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'uk-UA';
-      utterance.rate = 0.7;
-      utterance.volume = isWarmup ? 0 : 1.0; // "Прогрів" робимо беззвучним
-
-      const voices = window.speechSynthesis.getVoices();
-      const ukVoice = voices.find(v => v.lang.includes('uk'));
-      if (ukVoice) utterance.voice = ukVoice;
-
-      window.speechSynthesis.speak(utterance);
+      const audio = audioRef.current;
+      
+      // Використовуємо альтернативний TTS сервіс, який рідше блокується
+      // tl=uk (українська), q=текст
+      const url = `https://api.dictionaryapi.dev/media/pronunciations/en/apple-uk.mp3`; // Це просто тест структури
+      
+      // Насправді, найкращий варіант для стабільності - VoiceRSS або подібні, 
+      // але спробуємо ще раз Google з іншим заголовком через iFrame-хак
+      const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=uk&client=tw-ob&q=${encodeURIComponent(text)}`;
+      
+      audio.src = ttsUrl;
+      audio.load();
+      
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(e => console.warn("Audio play blocked", e));
+      }
     } catch (e) {
-      console.error(e);
+      console.error("Audio error:", e);
     }
   };
 
   const handleStart = () => {
-    try {
-      if (isPlaying) {
-        setIsPlaying(false);
-        window.speechSynthesis.cancel();
-        return;
-      }
-
-      setIsPlaying(true);
-      
-      // КРОК 1: Миттєвий беззвучний прогрів для розблокування
-      speak(".", true); 
-
-      // КРОК 2: Затримка 200мс перед першим реальним словом
-      // Це дає WebView час активувати аудіо-канал
-      setTimeout(() => {
-        const firstWord = words[Math.floor(Math.random() * words.length)];
-        setWord(firstWord);
-        speak(firstWord);
-      }, 200);
-
-    } catch (error) {
+    // ВАЖЛИВО: Жодних звернень до window.speechSynthesis тут!
+    if (isPlaying) {
       setIsPlaying(false);
+      audioRef.current.pause();
+      return;
     }
+
+    setIsPlaying(true);
+    const firstWord = words[Math.floor(Math.random() * words.length)];
+    setWord(firstWord);
+    playVoice(firstWord);
   };
 
   useEffect(() => {
@@ -77,54 +57,60 @@ export const SleepShuffler = () => {
       interval = setInterval(() => {
         const nextWord = words[Math.floor(Math.random() * words.length)];
         setWord(nextWord);
-        speak(nextWord);
-      }, 6000);
+        playVoice(nextWord);
+      }, 7000); // Трохи збільшив інтервал
     }
     return () => {
       clearInterval(interval);
-      if (window.speechSynthesis) window.speechSynthesis.cancel();
+      audioRef.current.pause();
     };
   }, [isPlaying]);
 
   return (
-    <div className="flex flex-col items-center justify-center h-[70vh] text-center">
+    <div className="flex flex-col items-center justify-center h-[70vh] text-center px-6">
       <AnimatePresence mode="wait">
         {isPlaying ? (
           <motion.h1
             key={word}
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.1 }}
-            className="text-4xl text-white font-light tracking-widest"
+            initial={{ opacity: 0, scale: 0.9, filter: 'blur(10px)' }}
+            animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+            exit={{ opacity: 0, scale: 1.1, filter: 'blur(10px)' }}
+            transition={{ duration: 1.5 }}
+            className="text-4xl text-white font-extralight tracking-[0.2em]"
           >
             {word}
           </motion.h1>
         ) : (
-          <div className="space-y-4">
-            <h2 className="text-xl text-white/50 tracking-widest uppercase italic font-light">Когнітивний потік</h2>
+          <div className="space-y-6">
+            <h2 className="text-xl text-white/40 tracking-[0.3em] uppercase font-light">
+              Когнітивне перемішування
+            </h2>
+            <p className="text-[11px] text-white/20 leading-relaxed max-w-[250px] mx-auto uppercase tracking-widest">
+              Слухай слова та уявляй їх, щоб зупинити потік думок
+            </p>
           </div>
         )}
       </AnimatePresence>
 
       <button
         onClick={handleStart}
-        className={`mt-12 px-10 py-4 rounded-full border border-white/10 uppercase tracking-[0.2em] text-[10px] transition-all active:scale-95 ${
-          isPlaying ? 'bg-red-500/10 text-red-200 border-red-500/20' : 'bg-white/5 text-white'
+        className={`mt-16 px-12 py-5 rounded-full border border-white/10 uppercase tracking-[0.3em] text-[10px] transition-all active:scale-95 ${
+          isPlaying ? 'bg-white/10 text-white' : 'bg-white/5 text-white/80'
         }`}
       >
-        {isPlaying ? 'ЗУПИНИТИ' : 'ПОЧАТИ ЗАНУРЕННЯ'}
+        {isPlaying ? 'ЗУПИНИТИ' : 'ПОЧАТИ'}
       </button>
 
-      {/* Візуальна пульсація під час роботи */}
-      <div className="mt-10 flex gap-2">
-        {isPlaying && [1, 2, 3].map((i) => (
+      {/* Прогрес-бар, щоб бачити, що апка живе */}
+      <div className="mt-12 w-48 h-[1px] bg-white/5 relative overflow-hidden">
+        {isPlaying && (
           <motion.div
-            key={i}
-            animate={{ opacity: [0.2, 0.5, 0.2] }}
-            transition={{ duration: 2, repeat: Infinity, delay: i * 0.6 }}
-            className="w-1.5 h-1.5 bg-white/40 rounded-full"
+            initial={{ left: "-100%" }}
+            animate={{ left: "100%" }}
+            transition={{ duration: 7, repeat: Infinity, ease: "linear" }}
+            className="absolute h-full w-full bg-gradient-to-r from-transparent via-white/20 to-transparent"
           />
-        ))}
+        )}
       </div>
     </div>
   );
