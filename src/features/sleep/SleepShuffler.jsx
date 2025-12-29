@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import wordsList from '../../data/words.json'; // Перевір шлях
+import wordsList from '../../data/words.json';
 
 export const SleepShuffler = ({ onFinish }) => {
   const [word, setWord] = useState('');
