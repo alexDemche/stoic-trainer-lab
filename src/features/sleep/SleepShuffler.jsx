@@ -5,33 +5,43 @@ import importedWords from '../../data/words.json';
 export const SleepShuffler = () => {
   const [word, setWord] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
+  const [voicesLoaded, setVoicesLoaded] = useState(false);
   
   const words = (importedWords && importedWords.length > 0) 
     ? importedWords 
     : ["Спокій", "Тиша", "Сон", "Ніч", "Зірки"];
 
-  const speak = (text) => {
+  // 1. Попереднє завантаження голосів (критично для Android)
+  useEffect(() => {
+    const loadVoices = () => {
+      const vs = window.speechSynthesis.getVoices();
+      if (vs.length > 0) setVoicesLoaded(true);
+    };
+
+    loadVoices();
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+  }, []);
+
+  const speak = (text, isWarmup = false) => {
     try {
-      // Перевірка наявності API
       if (!window.speechSynthesis) return;
 
-      window.speechSynthesis.cancel();
+      window.speechSynthesis.cancel(); // Очищуємо чергу
 
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'uk-UA';
       utterance.rate = 0.7;
-      utterance.volume = 1.0;
+      utterance.volume = isWarmup ? 0 : 1.0; // "Прогрів" робимо беззвучним
 
-      // Безпечне отримання голосів
       const voices = window.speechSynthesis.getVoices();
-      if (voices && voices.length > 0) {
-        const ukVoice = voices.find(v => v.lang.includes('uk'));
-        if (ukVoice) utterance.voice = ukVoice;
-      }
+      const ukVoice = voices.find(v => v.lang.includes('uk'));
+      if (ukVoice) utterance.voice = ukVoice;
 
       window.speechSynthesis.speak(utterance);
-    } catch (error) {
-      console.error("Speech error caught:", error);
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -39,24 +49,24 @@ export const SleepShuffler = () => {
     try {
       if (isPlaying) {
         setIsPlaying(false);
-        if (window.speechSynthesis) window.speechSynthesis.cancel();
+        window.speechSynthesis.cancel();
         return;
       }
 
-      // Активація через пустий звук (синхронно з кліком)
-      if (window.speechSynthesis) {
-        const silent = new SpeechSynthesisUtterance(" ");
-        window.speechSynthesis.speak(silent);
-      }
-
       setIsPlaying(true);
-      const firstWord = words[Math.floor(Math.random() * words.length)];
-      setWord(firstWord);
       
-      // Виклик озвучки
-      speak(firstWord);
+      // КРОК 1: Миттєвий беззвучний прогрів для розблокування
+      speak(".", true); 
+
+      // КРОК 2: Затримка 200мс перед першим реальним словом
+      // Це дає WebView час активувати аудіо-канал
+      setTimeout(() => {
+        const firstWord = words[Math.floor(Math.random() * words.length)];
+        setWord(firstWord);
+        speak(firstWord);
+      }, 200);
+
     } catch (error) {
-      console.error("HandleStart crash prevented:", error);
       setIsPlaying(false);
     }
   };
@@ -91,7 +101,7 @@ export const SleepShuffler = () => {
           </motion.h1>
         ) : (
           <div className="space-y-4">
-            <h2 className="text-xl text-white/50 tracking-widest uppercase italic">Когнітивний потік</h2>
+            <h2 className="text-xl text-white/50 tracking-widest uppercase italic font-light">Когнітивний потік</h2>
           </div>
         )}
       </AnimatePresence>
@@ -105,15 +115,16 @@ export const SleepShuffler = () => {
         {isPlaying ? 'ЗУПИНИТИ' : 'ПОЧАТИ ЗАНУРЕННЯ'}
       </button>
 
-      <div className="mt-10 h-1 w-32 bg-white/5 rounded-full overflow-hidden">
-        {isPlaying && (
-          <motion.div 
-            initial={{ width: "0%" }}
-            animate={{ width: "100%" }}
-            transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
-            className="h-full bg-white/20"
+      {/* Візуальна пульсація під час роботи */}
+      <div className="mt-10 flex gap-2">
+        {isPlaying && [1, 2, 3].map((i) => (
+          <motion.div
+            key={i}
+            animate={{ opacity: [0.2, 0.5, 0.2] }}
+            transition={{ duration: 2, repeat: Infinity, delay: i * 0.6 }}
+            className="w-1.5 h-1.5 bg-white/40 rounded-full"
           />
-        )}
+        ))}
       </div>
     </div>
   );
