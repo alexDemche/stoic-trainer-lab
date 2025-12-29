@@ -5,102 +5,88 @@ import importedWords from '../../data/words.json';
 export const SleepShuffler = ({ onFinish }) => {
   const [word, setWord] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
-  const [voices, setVoices] = useState([]);
-  const [logs, setLogs] = useState(["Готовий до роботи..."]); // ЛОГИ
+  const [logs, setLogs] = useState(["Готовий до сну..."]);
 
-  // Функція для запису логів на екран
+  // Використовуємо ref для аудіо, щоб мати змогу зупинити його
+  const audioRef = useRef(null);
+
   const addLog = (msg) => {
-    setLogs(prev => [msg, ...prev].slice(0, 5)); // Тримаємо останні 5 логів
-    console.log(msg);
+    // console.log(msg); // Можна розкоментувати для дебагу в консолі
+    setLogs(prev => [msg, ...prev].slice(0, 3));
   };
 
   const words = (importedWords && importedWords.length > 0) 
     ? importedWords 
-    : ["Сон", "Тиша", "Спокій"];
+    : ["Сон", "Спокій", "Тиша"];
 
-  // 1. Завантаження голосів
-  useEffect(() => {
-    const synth = window.speechSynthesis;
-    if (!synth) {
-      addLog("❌ Speech API не підтримується цим браузером");
-      return;
-    }
-
-    const loadVoices = () => {
-      const vs = synth.getVoices();
-      addLog(`🗣️ Голоси оновлено: знайдено ${vs.length}`);
-      setVoices(vs);
-    };
-
-    loadVoices();
-    if (synth.onvoiceschanged !== undefined) {
-      synth.onvoiceschanged = loadVoices;
-    }
-  }, []);
-
-  // 2. Функція озвучки
-  const speak = (text) => {
+  // --- НОВА ФУНКЦІЯ ОЗВУЧКИ (MP3) ---
+  const playAudio = (text) => {
     try {
-      const synth = window.speechSynthesis;
-      if (!synth) return;
-
-      synth.cancel(); // Скидання черги
-
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 0.8;
-      
-      // Спроба знайти голос
-      const ukVoice = voices.find(v => v.lang.includes('uk')) || voices[0];
-      if (ukVoice) {
-        utterance.voice = ukVoice;
+      // Зупиняємо попередній звук, якщо він є
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
       }
 
-      utterance.onstart = () => addLog(`▶️ Грає: ${text}`);
-      utterance.onerror = (e) => addLog(`❌ Помилка озвучки: ${e.error}`);
+      // Формуємо URL для Google Translate TTS API
+      // client=tw-ob - це публічний клієнт, tl=uk - українська мова
+      const url = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=uk&q=${encodeURIComponent(text)}`;
+      
+      const audio = new Audio(url);
+      audioRef.current = audio;
 
-      synth.speak(utterance);
+      audio.onplay = () => addLog(`🔊 Грає: ${text}`);
+      audio.onerror = (e) => addLog(`❌ Помилка аудіо: ${e.type}`);
+
+      // Запускаємо
+      const playPromise = audio.play();
+      
+      if (playPromise !== undefined) {
+        playPromise.catch(error => {
+          addLog(`⚠️ Блокування: ${error.message}`);
+        });
+      }
     } catch (e) {
       addLog(`❌ Crash: ${e.message}`);
     }
   };
 
-  // 3. Старт/Стоп
   const handleStart = () => {
     if (isPlaying) {
       setIsPlaying(false);
-      window.speechSynthesis.cancel();
-      addLog("⏹️ Зупинено користувачем");
+      if (audioRef.current) audioRef.current.pause();
+      addLog("⏹️ Зупинено");
       return;
     }
 
-    addLog("🟢 Старт натиснуто");
+    addLog("🟢 Старт");
     
     // Вибираємо слово
     const firstWord = words[Math.floor(Math.random() * words.length)];
     setWord(firstWord);
     setIsPlaying(true);
 
-    // ВАЖЛИВО: Запускаємо відразу
-    speak(firstWord);
+    // Запускаємо звук відразу
+    playAudio(firstWord);
   };
 
-  // 4. Таймер
+  // Таймер
   useEffect(() => {
     let interval;
     if (isPlaying) {
       interval = setInterval(() => {
         const nextWord = words[Math.floor(Math.random() * words.length)];
         setWord(nextWord);
-        speak(nextWord);
-      }, 5000);
+        playAudio(nextWord);
+      }, 5000); // Інтервал 5 секунд
     }
     return () => clearInterval(interval);
-  }, [isPlaying, voices]);
+  }, [isPlaying]);
 
-  // Очистка
+  // Очистка при виході
   useEffect(() => {
     return () => {
-      window.speechSynthesis.cancel();
+      if (audioRef.current) audioRef.current.pause();
       setIsPlaying(false);
     };
   }, []);
@@ -111,10 +97,11 @@ export const SleepShuffler = ({ onFinish }) => {
         {isPlaying ? (
           <motion.h1
             key={word}
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.2 }}
-            className="text-4xl font-light tracking-widest text-white mb-10 mt-10"
+            initial={{ opacity: 0, scale: 0.8, filter: "blur(10px)" }}
+            animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+            exit={{ opacity: 0, scale: 1.2, filter: "blur(5px)" }}
+            transition={{ duration: 1 }}
+            className="text-4xl md:text-5xl font-light tracking-widest text-white mb-10 mt-10"
           >
             {word}
           </motion.h1>
@@ -127,17 +114,14 @@ export const SleepShuffler = ({ onFinish }) => {
 
       <button
         onClick={handleStart}
-        className={`px-10 py-4 rounded-full border border-white/10 uppercase tracking-[0.2em] text-xs ${isPlaying ? 'bg-red-500/10' : 'bg-white/5'}`}
+        className={`px-10 py-4 rounded-full border border-white/10 uppercase tracking-[0.2em] text-xs transition-all active:scale-95 ${isPlaying ? 'bg-red-500/10 text-red-200' : 'bg-white/5 text-white'}`}
       >
         {isPlaying ? 'Зупинити' : 'Почати'}
       </button>
 
-      {/* --- ЕКРАННИЙ ЛОГЕР (ДЛЯ ТЕСТУ) --- */}
-      <div className="absolute bottom-0 w-full p-4 text-[10px] text-left font-mono text-green-400 bg-black/80 rounded-t-xl overflow-hidden pointer-events-none">
-        <p className="text-white/50 border-b border-white/10 mb-2">SYSTEM LOGS:</p>
-        {logs.map((log, i) => (
-          <div key={i}>{log}</div>
-        ))}
+      {/* Логер можна залишити маленьким або прибрати пізніше */}
+      <div className="absolute bottom-5 text-[9px] text-white/20 font-mono">
+        {logs[0]}
       </div>
     </div>
   );
