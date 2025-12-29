@@ -1,86 +1,102 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import wordsList from '../../data/words.json';
+import importedWords from '../../data/words.json';
 
 export const SleepShuffler = ({ onFinish }) => {
   const [word, setWord] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
-  
-  // Зберігаємо голоси, щоб не шукати їх щоразу
   const [voices, setVoices] = useState([]);
 
+  // --- ЗАХИСТ ВІД КРАШУ (Safety Check) ---
+  // Якщо words.json не підтягнувся, використовуємо резервний масив.
+  // Це гарантує, що кнопка "Почати" з'явиться завжди.
+  const words = (importedWords && importedWords.length > 0) 
+    ? importedWords 
+    : ["Спокій", "Тиша", "Сон", "Ніч", "Дихання", "Розслаблення", "Темрява", "Зірки"];
+
+  // --- ЗАВАНТАЖЕННЯ ГОЛОСІВ (Android Fix) ---
   useEffect(() => {
-    // Функція завантаження голосів (для Android/iOS це критично)
+    const synth = window.speechSynthesis;
+    
     const loadVoices = () => {
-      const availableVoices = window.speechSynthesis.getVoices();
-      setVoices(availableVoices);
+      const availableVoices = synth.getVoices();
+      if (availableVoices.length > 0) {
+        setVoices(availableVoices);
+      }
     };
 
     loadVoices();
     
-    // Chrome/Safari завантажують голоси асинхронно
-    window.speechSynthesis.onvoiceschanged = loadVoices;
+    // Android/Chrome потребують підписки на подію
+    if (synth.onvoiceschanged !== undefined) {
+      synth.onvoiceschanged = loadVoices;
+    }
+
+    // Хак для деяких Android: примусова спроба через 100мс
+    const timeout = setTimeout(loadVoices, 500);
 
     return () => {
-      window.speechSynthesis.onvoiceschanged = null;
+      synth.onvoiceschanged = null;
+      clearTimeout(timeout);
     };
   }, []);
 
-  // Головна функція озвучки
+  // --- ФУНКЦІЯ ОЗВУЧКИ ---
   const speakNow = (text) => {
-    // 1. Зупиняємо все, що говорило до цього
+    // Скасовуємо попередні фрази, щоб не було черги
     window.speechSynthesis.cancel();
 
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.8;
+    utterance.rate = 0.8; // Трохи повільніше
     utterance.pitch = 1;
     utterance.volume = 1;
 
-    // 2. Спроба знайти український голос, інакше беремо будь-який
+    // Шукаємо український голос, якщо немає - беремо перший доступний
     const ukVoice = voices.find(v => v.lang.includes('uk')) || voices[0];
     if (ukVoice) utterance.voice = ukVoice;
 
-    // 3. ЗАПУСК
     window.speechSynthesis.speak(utterance);
   };
 
+  // --- ОБРОБНИК КЛІКУ (Start/Stop) ---
   const handleStart = () => {
     if (isPlaying) {
-      // ЗУПИНКА
       setIsPlaying(false);
       window.speechSynthesis.cancel();
       return;
     }
 
-    // СТАРТ
+    // Захист: якщо слів все ще немає, виходимо
+    if (!words || words.length === 0) return;
+
     // 1. Обираємо перше слово
-    const firstWord = wordsList[Math.floor(Math.random() * wordsList.length)];
+    const firstWord = words[Math.floor(Math.random() * words.length)];
     setWord(firstWord);
     setIsPlaying(true);
 
-    // 2. КРИТИЧНО ВАЖЛИВО: Запускаємо звук ПРЯМО ТУТ, синхронно з кліком
-    // Спочатку "прогріваємо" рушій порожнім звуком (хак для iOS)
+    // 2. iOS/Android FIX: Запускаємо звук синхронно з кліком
+    // Спочатку пустий звук для активації динаміка
     const silent = new SpeechSynthesisUtterance(" ");
     window.speechSynthesis.speak(silent);
 
-    // Потім говоримо слово
+    // Потім реальне слово
     speakNow(firstWord);
   };
 
-  // Таймер для наступних слів
+  // --- ТАЙМЕР ---
   useEffect(() => {
     let interval;
     if (isPlaying) {
       interval = setInterval(() => {
-        const nextWord = wordsList[Math.floor(Math.random() * wordsList.length)];
+        const nextWord = words[Math.floor(Math.random() * words.length)];
         setWord(nextWord);
         speakNow(nextWord);
       }, 5000);
     }
     return () => clearInterval(interval);
-  }, [isPlaying, voices]); // voices у залежностях важливі
+  }, [isPlaying, voices, words]);
 
-  // Очистка при виході зі сторінки
+  // --- ОЧИСТКА ПРИ ВИХОДІ ---
   useEffect(() => {
     return () => {
       window.speechSynthesis.cancel();
@@ -119,9 +135,9 @@ export const SleepShuffler = ({ onFinish }) => {
         {isPlaying ? 'Зупинити' : 'Почати занурення'}
       </button>
 
-      {/* Підказка для iPhone */}
+      {/* Підказка */}
       <p className="mt-8 text-[9px] text-white/20 max-w-[200px] mx-auto leading-relaxed">
-        *Якщо немає звуку на iPhone: вимкніть беззвучний режим (важіль збоку) або додайте гучність під час відтворення.
+        *Якщо немає звуку: перевірте гучність медіа та вимкніть беззвучний режим (iPhone).
       </p>
     </div>
   );
