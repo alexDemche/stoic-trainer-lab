@@ -5,8 +5,6 @@ import importedWords from '../../data/words.json';
 export const SleepShuffler = () => {
   const [word, setWord] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
-  
-  // Використовуємо один стабільний реф для аудіо
   const audioRef = useRef(new Audio());
 
   const words = (importedWords && importedWords.length > 0) 
@@ -17,20 +15,17 @@ export const SleepShuffler = () => {
     try {
       const audio = audioRef.current;
       
-      // Використовуємо альтернативний TTS сервіс, який рідше блокується
-      // tl=uk (українська), q=текст
-      const url = `https://api.dictionaryapi.dev/media/pronunciations/en/apple-uk.mp3`; // Це просто тест структури
+      // Використовуємо VoiceRSS API (безкоштовний тир)
+      // hl=uk-ua (українська), c=MP3, f=8khz_8bit_mono (легкий файл для швидкого завантаження)
+      const apiKey = "6f81014841964177894d01b1a7d65609"; // Тимчасовий ключ для тесту
+      const url = `https://api.voicerss.org/?key=${apiKey}&hl=uk-ua&src=${encodeURIComponent(text)}&c=MP3&f=16khz_16bit_stereo`;
       
-      // Насправді, найкращий варіант для стабільності - VoiceRSS або подібні, 
-      // але спробуємо ще раз Google з іншим заголовком через iFrame-хак
-      const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=uk&client=tw-ob&q=${encodeURIComponent(text)}`;
-      
-      audio.src = ttsUrl;
+      audio.src = url;
       audio.load();
       
       const playPromise = audio.play();
       if (playPromise !== undefined) {
-        playPromise.catch(e => console.warn("Audio play blocked", e));
+        playPromise.catch(e => console.warn("Audio blocked:", e));
       }
     } catch (e) {
       console.error("Audio error:", e);
@@ -38,7 +33,6 @@ export const SleepShuffler = () => {
   };
 
   const handleStart = () => {
-    // ВАЖЛИВО: Жодних звернень до window.speechSynthesis тут!
     if (isPlaying) {
       setIsPlaying(false);
       audioRef.current.pause();
@@ -48,6 +42,8 @@ export const SleepShuffler = () => {
     setIsPlaying(true);
     const firstWord = words[Math.floor(Math.random() * words.length)];
     setWord(firstWord);
+    
+    // Активуємо аудіо-контекст першим кліком
     playVoice(firstWord);
   };
 
@@ -58,7 +54,7 @@ export const SleepShuffler = () => {
         const nextWord = words[Math.floor(Math.random() * words.length)];
         setWord(nextWord);
         playVoice(nextWord);
-      }, 7000); // Трохи збільшив інтервал
+      }, 7000);
     }
     return () => {
       clearInterval(interval);
@@ -72,22 +68,18 @@ export const SleepShuffler = () => {
         {isPlaying ? (
           <motion.h1
             key={word}
-            initial={{ opacity: 0, scale: 0.9, filter: 'blur(10px)' }}
-            animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
-            exit={{ opacity: 0, scale: 1.1, filter: 'blur(10px)' }}
-            transition={{ duration: 1.5 }}
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.1 }}
             className="text-4xl text-white font-extralight tracking-[0.2em]"
           >
             {word}
           </motion.h1>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-4">
             <h2 className="text-xl text-white/40 tracking-[0.3em] uppercase font-light">
               Когнітивне перемішування
             </h2>
-            <p className="text-[11px] text-white/20 leading-relaxed max-w-[250px] mx-auto uppercase tracking-widest">
-              Слухай слова та уявляй їх, щоб зупинити потік думок
-            </p>
           </div>
         )}
       </AnimatePresence>
@@ -101,17 +93,12 @@ export const SleepShuffler = () => {
         {isPlaying ? 'ЗУПИНИТИ' : 'ПОЧАТИ'}
       </button>
 
-      {/* Прогрес-бар, щоб бачити, що апка живе */}
-      <div className="mt-12 w-48 h-[1px] bg-white/5 relative overflow-hidden">
-        {isPlaying && (
-          <motion.div
-            initial={{ left: "-100%" }}
-            animate={{ left: "100%" }}
-            transition={{ duration: 7, repeat: Infinity, ease: "linear" }}
-            className="absolute h-full w-full bg-gradient-to-r from-transparent via-white/20 to-transparent"
-          />
-        )}
-      </div>
+      {/* Маленька підказка знизу */}
+      {isPlaying && (
+        <p className="mt-8 text-[8px] text-white/10 uppercase tracking-[0.2em]">
+          Слухай та візуалізуй образи
+        </p>
+      )}
     </div>
   );
 };
