@@ -1,55 +1,34 @@
-import { useState, useEffect } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { MoodPlayer } from '@/features/mood-player/MoodPlayer';
-import { MoodSelector } from '@/features/dashboard/MoodSelector';
+import { useEffect } from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { TelegramBackButton } from './components/TelegramBackButton';
+
+// Імпорт сторінок
+import HomePage from './pages/HomePage';
+import BreathPage from './pages/BreathPage';
+import SleepPage from './pages/SleepPage';
 
 function App() {
-  const [activeMood, setActiveMood] = useState(null);
-
-  // --- ДОДАНИЙ БЛОК ДЛЯ TELEGRAM ---
   useEffect(() => {
-    // Перевіряємо, чи ми в Telegram
     if (window.Telegram?.WebApp) {
       const tg = window.Telegram.WebApp;
       tg.ready();
-      tg.expand(); // Ця команда змушує iPhone розгорнути додаток на 100% висоти
-      
-      // Блокуємо вертикальний свайп, щоб випадково не закрити (опціонально)
-      // tg.enableClosingConfirmation(); 
+      tg.expand();
+      tg.setHeaderColor('#050505');
+      tg.setBackgroundColor('#050505');
     }
   }, []);
-  // ----------------------------------
 
   return (
-    <div className="min-h-screen w-full bg-[#050505] text-white overflow-hidden">
-      <AnimatePresence mode="wait">
-        {!activeMood ? (
-          <motion.div
-            key="selector"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.4 }}
-          >
-            <MoodSelector onSelect={setActiveMood} />
-          </motion.div>
-        ) : (
-          <motion.div
-            key="player"
-            initial={{ opacity: 0, scale: 1.1 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.6 }}
-          >
-            <MoodPlayer 
-              mood={activeMood}
-              duration={activeMood.duration}
-              onBack={() => setActiveMood(null)}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+    <BrowserRouter>
+      {/* Кнопка "Назад" живе тут і слухає зміни URL */}
+      <TelegramBackButton />
+      
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/breath" element={<BreathPage />} />
+        <Route path="/sleep" element={<SleepPage />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 
