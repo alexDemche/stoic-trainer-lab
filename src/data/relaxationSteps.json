@@ -1,0 +1,18 @@
+[
+  { "id": 1, "part": "Ступні", "action": "Сильно зігніть пальці ніг всередину", "isTense": true, "duration": 5 },
+  { "id": 2, "part": "Ступні", "action": "Різко розслабте. Відчуйте тепло", "isTense": false, "duration": 15 },
+  { "id": 3, "part": "Ікри", "action": "Потягніть носки на себе до напруги", "isTense": true, "duration": 5 },
+  { "id": 4, "part": "Ікри", "action": "Відпустіть. М'язи стають важкими", "isTense": false, "duration": 15 },
+  { "id": 5, "part": "Стегна", "action": "Стисніть стегна, ніби тримаєте монету", "isTense": true, "duration": 5 },
+  { "id": 6, "part": "Стегна", "action": "Повністю розслабте ноги", "isTense": false, "duration": 15 },
+  { "id": 7, "part": "Живіт", "action": "Напружте прес, ніби чекаєте на удар", "isTense": true, "duration": 5 },
+  { "id": 8, "part": "Живіт", "action": "Видихніть і розслабте живіт", "isTense": false, "duration": 15 },
+  { "id": 9, "part": "Руки", "action": "Стисніть кулаки якомога міцніше", "isTense": true, "duration": 5 },
+  { "id": 10, "part": "Руки", "action": "Розтисніть пальці. Відчуйте легкість", "isTense": false, "duration": 15 },
+  { "id": 11, "part": "Плечі", "action": "Підніміть плечі максимально до вух", "isTense": true, "duration": 5 },
+  { "id": 12, "part": "Плечі", "action": "Скиньте плечі вниз. Шия вільна", "isTense": false, "duration": 15 },
+  { "id": 13, "part": "Обличчя", "action": "Зажмурте очі та стисніть зуби", "isTense": true, "duration": 5 },
+  { "id": 14, "part": "Обличчя", "action": "Відпустіть всі м'язи обличчя", "isTense": false, "duration": 15 },
+  { "id": 15, "part": "Все тіло", "action": "Напружте ВСІ м'язи одночасно!", "isTense": true, "duration": 5 },
+  { "id": 16, "part": "Все тіло", "action": "Повний спокій. Ви готові до сну", "isTense": false, "duration": 20 }
+]
