@@ -8,7 +8,7 @@ const webAppLink = "https://stoic-trainer-lab.vercel.app/";
 
 // --- ТЕКСТИ ---
 // Використовуємо \n\n для розділення абзаців та \n для списків
-const mainMenuText = `<b>Stoic Trainer Lab 🏛️</b>\n
+const mainMenuText = `<b>🧘 Stoic Trainer Lab</b>\n
 
 Вітаю у твоєму просторі для тренування спокою. Тут ми поєднуємо античну мудрість та сучасну нейрофізіологію.
 
@@ -19,7 +19,7 @@ const mainMenuText = `<b>Stoic Trainer Lab 🏛️</b>\n
 
 <i>Твій спокій — у твоїх руках. Почнемо?</i>`;
 
-const helpText = `<b>🏛️ Stoic Trainer Lab — твій інструментарій спокою</b>
+const helpText = `<b>🧘 Stoic Trainer Lab — твій інструментарій спокою</b>
 
 Ми зібрали науково обґрунтовані та стоїчні практики для контролю твого стану:
 
@@ -39,7 +39,7 @@ const helpText = `<b>🏛️ Stoic Trainer Lab — твій інструмент
 
 const getMainMenu = () => Markup.inlineKeyboard([
   // Головна кнопка тепер веде в загальний хаб
-  [Markup.button.webApp('🏛️ Відкрити Stoic Lab', webAppLink)], 
+  [Markup.button.webApp('🧘‍♂️ Відкрити Stoic Lab', webAppLink)], 
   [Markup.button.callback('📖 Про методики', 'help_action')],
   // Зв'язок з головним ментором
   [Markup.button.url('Stoic Trainer 🏛️', 'https://t.me/StoicTrainer_ua_bot')]
@@ -64,13 +64,13 @@ bot.help((ctx) => {
 bot.command('lab', (ctx) => {
   return ctx.replyWithHTML("<b>Натисніть кнопку нижче, щоб відкрити лабораторію:</b>", 
     Markup.inlineKeyboard([
-      [Markup.button.webApp('🏛️ Відкрити Stoic Lab', webAppLink)]
+      [Markup.button.webApp('🧘‍♂️ Відкрити Stoic Lab', webAppLink)]
     ])
   );
 });
 
 bot.command('about', (ctx) => {
-  const aboutText = `<b>🏛️ Stoic Trainer Lab</b>
+  const aboutText = `<b>🧘‍♂️ Stoic Trainer Lab</b>
 Це практичне доповнення до основного курсу стоїцизму.
 
 <b>Головний проект:</b> @StoicTrainer_ua_bot
