@@ -42,7 +42,7 @@ const getMainMenu = () => Markup.inlineKeyboard([
   [Markup.button.webApp('🏛️ Відкрити Stoic Lab', webAppLink)], 
   [Markup.button.callback('📖 Про методики', 'help_action')],
   // Зв'язок з головним ментором
-  [Markup.button.url('🧠 Stoic Trainer (365 уроків)', 'https://t.me/StoicTrainer_ua_bot')]
+  [Markup.button.url('Stoic Trainer 🏛️', 'https://t.me/StoicTrainer_ua_bot')]
 ]);
 
 const getBackMenu = () => Markup.inlineKeyboard([
